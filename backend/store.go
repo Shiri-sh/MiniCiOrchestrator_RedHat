@@ -1,0 +1,26 @@
+package main
+
+import "sync"
+
+// In-memory store for builds
+var (
+	builds []Build
+	nextBuildID = 1
+	mu sync.Mutex
+)
+
+func AddBuild(b Build) Build {
+	mu.Lock()
+	defer mu.Unlock()
+	b.ID = nextBuildID
+	nextBuildID++
+	builds = append(builds, b)
+	return b
+}
+
+func GetAllBuilds() []Build {
+	mu.Lock()
+	defer mu.Unlock()
+	//returns a copy of the builds slice to prevent external modification
+	return builds
+}
