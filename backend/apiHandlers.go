@@ -12,7 +12,9 @@ import(
 // Get all builds
 func (app *App) GetAllBuildsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(app.GetAllBuilds())
+	if err := json.NewEncoder(w).Encode(app.GetAllBuilds()); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 // Create a new build

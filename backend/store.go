@@ -1,16 +1,8 @@
 package main
 
-import (
-	"k8s.io/client-go/kubernetes"
+import(
+	"fmt"
 )
-
-func NewApp(client *kubernetes.Clientset) *App {
-	return &App{
-		K8sClient: client,
-		Builds: []Build{},
-		NextBuildID: 1,
-	}
-}
 
 func (app *App) AddBuild(b Build) Build {
 	app.Mu.Lock()
@@ -30,13 +22,14 @@ func (app *App) GetAllBuilds() []Build {
 	return copiedBuilds
 }
 
-func (app *App) UpdateBuildStatus(buildID int, status string) {
+func (app *App) UpdateBuildStatus(buildID int, status string) error {
 	app.Mu.Lock()
 	defer app.Mu.Unlock()
 	for i, b := range app.Builds {
 		if b.ID == buildID {
 			app.Builds[i].Status = status
-			break
+			return nil
 		}
 	}
+	return fmt.Errorf("Build with ID %d not found", buildID)
 }
