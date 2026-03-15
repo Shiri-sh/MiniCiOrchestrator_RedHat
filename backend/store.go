@@ -22,5 +22,7 @@ func GetAllBuilds() []Build {
 	mu.Lock()
 	defer mu.Unlock()
 	//returns a copy of the builds slice to prevent external modification
-	return builds
+	copiedBuilds := make([]Build, len(builds))
+	copy(copiedBuilds, builds)
+	return copiedBuilds
 }
