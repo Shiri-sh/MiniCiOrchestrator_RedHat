@@ -9,7 +9,19 @@
     <input id="branch" placeholder="branch" value="main">
 
     <button id="buildButt" style="color: #e9322e;">Build</button>
-
-    <div id="buildsList"></div>
+     
+    <div id="table"> 
+        <table>
+            <thead>
+                <tr>
+                    <th>Build ID</th>
+                    <th>Repo</th>
+                    <th>Status</th>
+                    <th>Created At</th>
+                </tr>
+            </thead>
+            <tbody id="buildsList"></tbody>
+        </table>
+    </div>
 </body>
 <script src="app.js"></script>
