@@ -9,25 +9,26 @@ async function triggerBuild(event) {
   const branch = branchInput.value
 
   try {
-    const response = await fetch("http://localhost:8080/build/create", {
+    const response = await fetch("http://localhost:8081/build/create", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({ repo, branch })
     })
+    newBuild = await response.json()
+    console.log("Build triggered:", newBuild)
   }
   catch (error) {
     console.log("Error triggering build:", error.message)
     return
   }
-
 }
 
 async function fetchBuilds() {
   try {
     console.log("Fetching builds...")
-    const response = await fetch("http://localhost:8080/builds")
+    const response = await fetch("http://localhost:8081/builds")
     const builds = await response.json()
     console.log("Fetched builds:", builds)
     buildsList.innerHTML = builds.map(build => `
