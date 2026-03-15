@@ -26,3 +26,14 @@ func GetAllBuilds() []Build {
 	copy(copiedBuilds, builds)
 	return copiedBuilds
 }
+
+func UpdateBuildStatus(buildID int, status string) {
+	mu.Lock()
+	defer mu.Unlock()
+	for i, b := range builds {
+		if b.ID == buildID {
+			builds[i].Status = status
+			break
+		}
+	}
+}
