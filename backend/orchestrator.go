@@ -4,15 +4,15 @@ import (
 	// "time"
 	"fmt"
 	"context"
-	"os"
-	"path/filepath"
+	// "os"
+	// "path/filepath"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
+	// "k8s.io/client-go/kubernetes"
+	// "k8s.io/client-go/rest"
+	// "k8s.io/client-go/tools/clientcmd"
 )
 
 func (app *App) TriggerBuild(b Build) {
@@ -20,29 +20,8 @@ func (app *App) TriggerBuild(b Build) {
     
 	ctx := context.Background()
 
-	job := &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("mini-ci-build-%d", b.ID),
-		},
-		Spec: batchv1.JobSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name:  "builder-container",
-							Image: "alpine:latest",
-							Command: []string{
-								"bin/sh",
-								"-c",
-								fmt.Sprintf("echo 'Cloning repo: %s'; sleep 10; echo 'Build finished for repo: %s, branch: %s'", b.Repo, b.Repo, b.Branch),
-							},
-						},
-					},
-					RestartPolicy: corev1.RestartPolicyNever,
-				},
-			},
-		},
-	}
+	job := CloneSecurityJob(b)
+	
 	errUpdateRunning := app.UpdateBuildStatus(b.ID,"Running")
 	if errUpdateRunning != nil {
 		fmt.Printf("Error updating build status: %v\n", errUpdateRunning)
@@ -64,23 +43,91 @@ func (app *App) TriggerBuild(b Build) {
 	}
 
 }
-func GetK8sClient() (*kubernetes.Clientset, error) {
-	
-	fmt.Println("Creating Kubernetes client...")
-	config, err:= rest.InClusterConfig()
-	if err != nil {
-		home, _:= os.UserHomeDir()
-		kubeconfig := filepath.Join(home, ".kube", "config")
-		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
-		if err!=nil{
-			return nil, fmt.Errorf("error couldn't find Kubernetes client config: %v \n", err)
-		}
-	}
 
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, fmt.Errorf("error creating Kubernetes clientset: %v \n", err)
+func FakeCloneJob(b Build) *batchv1.Job {
+    return &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("mini-ci-build-%d", b.ID),
+		},
+		Spec: batchv1.JobSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "builder-container",
+							Image: "alpine:latest",
+							Command: []string{
+								"/bin/sh",
+								"-c",
+								fmt.Sprintf("echo 'Cloning repo: %s'; sleep 10; echo 'Build finished for repo: %s, branch: %s'", b.Repo, b.Repo, b.Branch),
+							},
+						},
+					},
+					RestartPolicy: corev1.RestartPolicyNever,
+				},
+			},
+		},
 	}
-	return clientset, nil
 }
 
+func CloneSecurityJob(b Build) *batchv1.Job {
+	return &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("konflux-build-%d", b.ID),
+			Labels: map[string]string{
+				"app": "mini-ci",
+				"build-id": fmt.Sprintf("%d", b.ID),
+			},
+		},
+		Spec: batchv1.JobSpec{
+			TTLSecondsAfterFinished: int32Ptr(100),
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Volumes: []corev1.Volume{
+						{
+							Name: "repo-storage",
+							VolumeSource: corev1.VolumeSource{
+								EmptyDir: &corev1.EmptyDirVolumeSource{},
+							},
+						},
+					},
+					
+					InitContainers: []corev1.Container{
+						{
+							Name:  "git-clone",
+							Image: "alpine/git:latest",
+							Command: []string{
+								"sh",
+								"-c",
+								fmt.Sprintf("echo 'Cloning repo: %s'; git clone --depth 1 %s /workspace; echo 'Build finished'", b.Repo, b.Repo),
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name: "repo-storage",
+									MountPath: "/workspace",
+								},
+							},
+						},
+					},
+
+					Containers: []corev1.Container{
+						{
+							Name:  "security-scan",
+							Image: "trufflesecurity/trufflehog:latest",
+							Args: []string{"filesystem","/workspace","--fail"},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:"repo-storage",
+									MountPath: "/workspace",
+								},
+							},
+						},
+					},
+					RestartPolicy: corev1.RestartPolicyNever,
+				},
+			},
+		},
+	}
+}
+
+func int32Ptr(i int32) *int32 { return &i }
