@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"context"
+	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -56,6 +57,8 @@ func FakeCloneJob(b Build) *batchv1.Job {
 func int32Ptr(i int32) *int32 { return &i }
 
 func CloneSecurityJob(b Build) *batchv1.Job {
+	timestamp := time.Now().Unix()
+	artifactName := fmt.Sprintf("security-%d-%d.json", b.ID, timestamp)
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("konflux-build-%d", b.ID),
@@ -73,6 +76,14 @@ func CloneSecurityJob(b Build) *batchv1.Job {
 							Name: "repo-storage",
 							VolumeSource: corev1.VolumeSource{
 								EmptyDir: &corev1.EmptyDirVolumeSource{},
+							},
+						},
+						{
+							Name: "artifact-storage",
+							VolumeSource: corev1.VolumeSource{
+								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+									ClaimName: "mini-ci-artifacts",
+								},
 							},
 						},
 					},
@@ -99,11 +110,19 @@ func CloneSecurityJob(b Build) *batchv1.Job {
 						{
 							Name:  "security-scan",
 							Image: "trufflesecurity/trufflehog:3.24.1",
-							Args: []string{"filesystem","/workspace","--fail"},
+							Command: []string{
+							"sh",
+							"-c",
+							fmt.Sprintf("trufflehog filesystem /workspace --json --fail > /artifacts/%s", artifactName),
+							},
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:"repo-storage",
 									MountPath: "/workspace",
+								},
+								{
+									Name:"artifact-storage",
+									MountPath: "/artifacts",
 								},
 							},
 						},
