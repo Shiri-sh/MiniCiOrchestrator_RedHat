@@ -125,7 +125,7 @@ func CloneSecurityJob(b Build) *batchv1.Job {
 									MountPath: "/workspace",
 								},
 								{
-									Name:"artifact-storage",
+									Name:"mini-ci-artifacts",
 									MountPath: "/artifacts",
 								},
 							},
