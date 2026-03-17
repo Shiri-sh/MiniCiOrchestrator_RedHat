@@ -12,7 +12,7 @@ async function triggerBuild(event) {
   const branch = branchInput.value;
 
   try {
-    const response = await fetch("http://localhost:8080/build/create", {
+    const response = await fetch("http://localhost:30001/build/create", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -31,7 +31,7 @@ async function triggerBuild(event) {
 async function fetchBuilds() {
   try {
     console.log("Fetching builds...")
-    const response = await fetch("http://localhost:8080/builds")
+    const response = await fetch("http://localhost:30001/builds")
     const builds = await response.json()
     console.log("Fetched builds:", builds)
     setTable(builds)
