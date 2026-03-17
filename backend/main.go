@@ -88,6 +88,7 @@ func main() {
 	// API endpoints
 	http.HandleFunc("/builds", app.GetAllBuildsHandler)
 	http.HandleFunc("/build/create", app.CreateBuildHandler)
+	http.HandleFunc("/build/results", app.GetLatestArtifact)
 
 	err = http.ListenAndServe(":8080", nil)
 	if err != nil {

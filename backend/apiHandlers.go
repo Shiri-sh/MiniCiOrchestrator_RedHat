@@ -5,6 +5,8 @@ import(
 	"net/http"
 	"time"
 	"fmt"
+	"os"
+	"path/filepath"
 )
 
 // API Handlers
@@ -42,4 +44,33 @@ func (app *App) CreateBuildHandler(w http.ResponseWriter, r *http.Request) {
     fmt.Println("sending back response")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(newBuild)
+}
+func (app *App) GetLatestArtifact(w http.ResponseWriter, r *http.Request) {
+    dirPath := "/data" // path to the directory where artifacts are stored
+    files, err := os.ReadDir(dirPath)
+    if err != nil {
+        http.Error(w, "Could not read directory", http.StatusInternalServerError)
+        return
+    }
+
+    var latestFile string
+    var latestTime time.Time
+
+    for _, file := range files {
+        info, _ := file.Info()
+		//looking for the most recently modified file in the directory
+        if info.ModTime().After(latestTime) {
+            latestTime = info.ModTime()
+            latestFile = file.Name()
+        }
+    }
+
+    if latestFile == "" {
+        http.Error(w, "No artifacts found", http.StatusNotFound)
+        return
+    }
+
+    data, _ := os.ReadFile(filepath.Join(dirPath, latestFile))
+    w.Header().Set("Content-Type", "application/json")
+    w.Write(data)
 }
