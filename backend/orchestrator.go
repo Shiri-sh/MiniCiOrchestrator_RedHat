@@ -18,8 +18,7 @@ func (app *App) TriggerBuild(b Build) {
 	fmt.Printf("Starting Kubernetes job for repo: %s, branch: %s\n", b.Repo, b.Branch)
     
 	ctx := context.Background()
-    app.EnssurePVSExists()
-	job := CloneSecurityJob(b)
+	job := app.CloneSecurityJob(b)
 
 	//create the job in Kubernetes
 	_, err := app.K8sClient.BatchV1().Jobs("default").Create(ctx, job, metav1.CreateOptions{})
@@ -60,7 +59,9 @@ func FakeCloneJob(b Build) *batchv1.Job {
 }
 func int32Ptr(i int32) *int32 { return &i }
 
-func CloneSecurityJob(b Build) *batchv1.Job {
+func (app *App) CloneSecurityJob(b Build) *batchv1.Job {
+    app.EnssurePVSExists()
+
 	timestamp := time.Now().Unix()
 	artifactName := fmt.Sprintf("security-%d-%d.json", b.ID, timestamp)
 	return &batchv1.Job{
